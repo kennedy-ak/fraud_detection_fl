@@ -25,7 +25,8 @@ SECRET_KEY = 'django-insecure-u!x^#t8v@gh%)b2y@*p(+xmdcg8zqi+h6ibc1qjmiyq9v3k(i0
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["*",
+"https://fraud-detection-fl.onrender.com/"]
 
 
 # Application definition
