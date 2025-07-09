@@ -20,16 +20,13 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.shortcuts import redirect
 
-def home_redirect(request):
-    return redirect('accounts:dashboard')
-
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', home_redirect),  # Redirect root to dashboard
+    path('', include('main.urls')),  # ADD THIS LINE - makes landing page the home
     path('accounts/', include('accounts.urls')),
     path('models/', include('models.urls')),
     path('federated/', include('federated.urls')),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

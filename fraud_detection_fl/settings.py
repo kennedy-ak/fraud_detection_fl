@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     'accounts',
     'models',
     'federated',
+    "main",
+    
 ]
 
 MIDDLEWARE = [
