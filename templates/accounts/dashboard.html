@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - {{ client_profile.organization_name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Welcome Header -->
+    <div class="col-12 mb-4">
+        <div class="card bg-gradient-primary text-white">
+            <div class="card-body">
+                <h2><i class="fas fa-building"></i> {{ client_profile.organization_name }}</h2>
+                <p class="mb-0">{{ client_profile.get_organization_type_display }} • Federated Learning Client</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Statistics Cards -->
+    <div class="col-md-3 mb-4">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <i class="fas fa-database fa-2x text-primary mb-2"></i>
+                <h4>{{ total_sessions }}</h4>
+                <p class="text-muted mb-0">Training Sessions</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                <h4>{{ completed_sessions }}</h4>
+                <p class="text-muted mb-0">Completed</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-line fa-2x text-info mb-2"></i>
+                <h4>{{ avg_accuracy|floatformat:4 }}</h4>
+                <p class="text-muted mb-0">Avg. Accuracy</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <i class="fas fa-lock fa-2x text-warning mb-2"></i>
+                <h4><i class="fas fa-check text-success"></i></h4>
+                <p class="text-muted mb-0">Encrypted FL</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Quick Upload -->
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-upload"></i> Upload New Dataset
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'models:upload_dataset' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {% load crispy_forms_tags %}
+                    {{ upload_form|crispy }}
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-rocket"></i> Start Training
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Training Progress Chart -->
+    <div class="col-md-8 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-area"></i> Training Progress
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="progressChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Training Sessions Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-history"></i> Recent Training Sessions
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if training_sessions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Session ID</th>
+                                    <th>Dataset</th>
+                                    <th>Status</th>
+                                    <th>Accuracy</th>
+                                    <th>Loss</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for session in training_sessions %}
+                                <tr>
+                                    <td>
+                                        <code>{{ session.session_id|truncatechars:12 }}</code>
+                                    </td>
+                                    <td>{{ session.dataset_name }}</td>
+                                    <td>
+                                        {% if session.status == 'completed' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check"></i> Completed
+                                            </span>
+                                        {% elif session.status == 'training' %}
+                                            <span class="badge bg-primary">
+                                                <i class="fas fa-spinner fa-spin"></i> Training
+                                            </span>
+                                        {% elif session.status == 'failed' %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times"></i> Failed
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">
+                                                <i class="fas fa-clock"></i> Pending
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if session.accuracy %}
+                                            {{ session.accuracy|floatformat:4 }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if session.loss %}
+                                            {{ session.loss|floatformat:4 }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ session.created_at|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'models:training_progress' session.session_id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-database fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No training sessions yet</h5>
+                        <p class="text-muted">Upload your first dataset to start federated learning!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize progress chart
+    const ctx = document.getElementById('progressChart').getContext('2d');
+    
+    // Fetch training progress data
+    fetch('{% url "accounts:api_training_progress" %}')
+        .then(response => response.json())
+        .then(data => {
+            const sessions = data.sessions.filter(s => s.accuracy !== null);
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sessions.map(s => new Date(s.created_at).toLocaleDateString()),
+                    datasets: [{
+                        label: 'Model Accuracy',
+                        data: sessions.map(s => s.accuracy),
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching progress data:', error);
+        });
+    
+    // Auto-refresh dashboard every 30 seconds
+    setInterval(function() {
+        location.reload();
+    }, 30000);
+});
+</script>
+{% endblock %}

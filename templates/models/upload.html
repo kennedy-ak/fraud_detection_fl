@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Upload Dataset - Federated Learning{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-upload"></i> Upload Training Dataset
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle"></i> Dataset Requirements:</h6>
+                    <ul class="mb-0">
+                        <li>CSV format with headers</li>
+                        <li>Must include: <code>is_fraud</code>, <code>amt</code>, <code>category</code>, etc.</li>
+                        <li>Maximum file size: 500MB</li>
+                        <li>Data remains on your local system - only encrypted model weights are shared</li>
+                    </ul>
+                </div>
+                
+                <form method="post" enctype="multipart/form-data" id="uploadForm">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    
+                    <div class="progress mb-3" style="display: none;" id="uploadProgress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%"></div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                            <i class="fas fa-rocket"></i> Start Federated Training
+                        </button>
+                        <a href="{% url 'accounts:dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sample Data Format Modal -->
+<div class="modal fade" id="sampleDataModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Sample Data Format</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Your CSV should include these columns (sample from credit card fraud dataset):</p>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>trans_date_trans_time</th>
+                                <th>cc_num</th>
+                                <th>merchant</th>
+                                <th>category</th>
+                                <th>amt</th>
+                                <th>gender</th>
+                                <th>city</th>
+                                <th>state</th>
+                                <th>lat</th>
+                                <th>long</th>
+                                <th>is_fraud</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>2019-01-01 00:00:18</td>
+                                <td>2703186189652095</td>
+                                <td>fraud_Rippin, Kub and Mann</td>
+                                <td>misc_net</td>
+                                <td>4.97</td>
+                                <td>F</td>
+                                <td>Moravian Falls</td>
+                                <td>NC</td>
+                                <td>36.0788</td>
+                                <td>-81.1781</td>
+                                <td>0</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-muted mt-3">
+                    <strong>is_fraud</strong> column should contain 0 (legitimate) or 1 (fraudulent) transactions.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6>Need sample data format?</h6>
+                <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#sampleDataModal">
+                    <i class="fas fa-table"></i> View Sample Format
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    const submitBtn = document.getElementById('submitBtn');
+    const progress = document.getElementById('uploadProgress');
+    
+    // Show progress and disable button
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading & Training...';
+    submitBtn.disabled = true;
+    progress.style.display = 'block';
+    
+    // Simulate progress (in real implementation, use WebSocket or polling)
+    let progressValue = 0;
+    const progressBar = progress.querySelector('.progress-bar');
+    
+    const interval = setInterval(() => {
+        progressValue += Math.random() * 10;
+        if (progressValue > 90) progressValue = 90;
+        progressBar.style.width = progressValue + '%';
+    }, 500);
+    
+    // Clean up on page unload
+    window.addEventListener('beforeunload', () => {
+        clearInterval(interval);
+    });
+});
+</script>
+{% endblock %}

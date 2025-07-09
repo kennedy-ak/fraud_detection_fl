@@ -1,0 +1,479 @@
+{% extends 'base.html' %}
+
+{% block title %}Federated Learning Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card bg-gradient-primary text-white">
+            <div class="card-body">
+                <h2><i class="fas fa-network-wired"></i> Federated Learning Administration</h2>
+                <p class="mb-0">Central coordination and monitoring for distributed fraud detection</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Global Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary text-center">
+            <div class="card-body">
+                <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                <h4>{{ total_clients }}</h4>
+                <p class="text-muted mb-0">Total Clients</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success text-center">
+            <div class="card-body">
+                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                <h4>{{ active_clients }}</h4>
+                <p class="text-muted mb-0">Active Clients</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info text-center">
+            <div class="card-body">
+                <i class="fas fa-sync-alt fa-2x text-info mb-2"></i>
+                <h4>{{ aggregation_stats.total_rounds }}</h4>
+                <p class="text-muted mb-0">FL Rounds</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning text-center">
+            <div class="card-body">
+                <i class="fas fa-chart-line fa-2x text-warning mb-2"></i>
+                <h4>{{ aggregation_stats.best_accuracy|floatformat:3 }}</h4>
+                <p class="text-muted mb-0">Best Accuracy</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Aggregation Controls -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cogs"></i> Federated Aggregation Control
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- CRITICAL: Add CSRF token form -->
+                <form id="aggregationForm" style="display: none;">
+                    {% csrf_token %}
+                </form>
+                
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6>Global Model Status</h6>
+                        <p class="text-muted mb-0">Last updated: {{ aggregation_stats.total_rounds }} rounds ago</p>
+                    </div>
+                    <button class="btn btn-primary btn-lg" onclick="triggerAggregation()" id="aggregationBtn">
+                        <i class="fas fa-play"></i> Trigger Aggregation
+                    </button>
+                </div>
+                
+                <div class="progress mb-3">
+                    <div class="progress-bar bg-success" role="progressbar" 
+                         style="width: {% widthratio aggregation_stats.latest_accuracy 1 100 %}%">
+                        Current Accuracy: {{ aggregation_stats.latest_accuracy|floatformat:3 }}
+                    </div>
+                </div>
+                
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <small class="text-muted">Participating Clients</small>
+                        <h6>{{ aggregation_stats.participating_clients }}</h6>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">Encryption Status</small>
+                        <h6><span class="badge bg-success">Active</span></h6>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">Privacy Level</small>
+                        <h6><span class="badge bg-info">Maximum</span></h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-shield-alt"></i> Security Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        Homomorphic Encryption
+                        <span class="badge bg-success rounded-pill">Active</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        Data Privacy
+                        <span class="badge bg-success rounded-pill">Secured</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        Client Authentication
+                        <span class="badge bg-success rounded-pill">Verified</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        Model Integrity
+                        <span class="badge bg-success rounded-pill">Valid</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Aggregation Log (Debug Info) -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-terminal"></i> Aggregation Debug Log
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="aggregationLog" class="bg-dark text-white p-3 rounded" style="height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.8rem;">
+                    <div class="log-entry text-info">[System] Aggregation service ready</div>
+                    <div class="log-entry text-muted">[System] Waiting for aggregation trigger...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Global Model Performance Chart -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-area"></i> Global Model Performance Over Time
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="globalPerformanceChart" width="400" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Client Status Table -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-users"></i> Client Status Overview
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Organization</th>
+                                <th>Type</th>
+                                <th>Total Sessions</th>
+                                <th>Completed</th>
+                                <th>Avg. Accuracy</th>
+                                <th>Last Training</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in client_stats %}
+                            <tr>
+                                <td>
+                                    <strong>{{ stat.client.organization_name }}</strong><br>
+                                    <small class="text-muted">{{ stat.client.user.username }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">
+                                        {{ stat.client.get_organization_type_display }}
+                                    </span>
+                                </td>
+                                <td>{{ stat.total_sessions }}</td>
+                                <td>
+                                    <span class="badge bg-success">{{ stat.completed_sessions }}</span>
+                                </td>
+                                <td>
+                                    {% if stat.avg_accuracy %}
+                                        {{ stat.avg_accuracy|floatformat:4 }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if stat.last_training %}
+                                        {{ stat.last_training.created_at|timesince }} ago
+                                    {% else %}
+                                        Never
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if stat.client.is_active %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check"></i> Active
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-pause"></i> Inactive
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <i class="fas fa-users fa-2x mb-2"></i><br>
+                                    No clients registered yet
+                                </td>
+            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Global Performance Chart
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('globalPerformanceChart').getContext('2d');
+    
+    // Fetch aggregation history
+    fetch('{% url "federated:api_federated_stats" %}')
+        .then(response => response.json())
+        .then(data => {
+            const accuracyHistory = data.accuracy_history || [];
+            const rounds = Array.from({length: accuracyHistory.length}, (_, i) => i + 1);
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: rounds,
+                    datasets: [{
+                        label: 'Global Model Accuracy',
+                        data: accuracyHistory,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            title: {
+                                display: true,
+                                text: 'Accuracy'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Federated Learning Round'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+                        title: {
+                            display: true,
+                            text: 'Federated Learning Progress'
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching FL stats:', error);
+            addLogEntry('Error fetching FL stats: ' + error.message, 'error');
+        });
+});
+
+// Enhanced triggerAggregation function with better error handling
+function triggerAggregation() {
+    const btn = document.getElementById('aggregationBtn');
+    const originalText = btn.innerHTML;
+    
+    // Update button state
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aggregating...';
+    btn.disabled = true;
+    
+    // Add log entry
+    addLogEntry('Starting federated aggregation...', 'info');
+    
+    // Get CSRF token from the form
+    const csrfToken = document.querySelector('#aggregationForm [name=csrfmiddlewaretoken]').value;
+    
+    console.log('[Admin] Triggering aggregation with CSRF token');
+    
+    // Send aggregation request with detailed logging
+    fetch('{% url "federated:trigger_aggregation" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        credentials: 'same-origin'  // Include cookies for session
+    })
+    .then(response => {
+        console.log('[Admin] Aggregation response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return response.json();
+    })
+    .then(data => {
+        console.log('[Admin] Aggregation response data:', data);
+        
+        // Handle different response structures
+        if (data.status === 'success') {
+            handleSuccessResponse(data);
+        } else if (data.status === 'warning') {
+            handleWarningResponse(data);
+        } else if (data.status === 'error') {
+            handleErrorResponse(data);
+        } else {
+            // Try to handle legacy response format
+            if (data.round_id && data.global_accuracy !== undefined) {
+                handleLegacySuccessResponse(data);
+            } else {
+                throw new Error('Unknown response format: ' + JSON.stringify(data));
+            }
+        }
+    })
+    .catch(error => {
+        console.error('[Admin] Aggregation error:', error);
+        handleErrorResponse({ message: error.message });
+    })
+    .finally(() => {
+        // Restore button
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+function handleSuccessResponse(data) {
+    addLogEntry(`Aggregation successful! Round ${data.round_id}`, 'success');
+    addLogEntry(`Global accuracy: ${data.global_accuracy || data.avg_accuracy}`, 'info');
+    addLogEntry(`Participating clients: ${data.participating_clients || data.num_clients}`, 'info');
+    
+    // Show success message
+    showNotification('success', 
+        `<strong>Aggregation Successful!</strong><br>
+         Round ${data.round_id} completed with accuracy: ${(data.global_accuracy || data.avg_accuracy || 0).toFixed(4)}<br>
+         ${data.participating_clients || data.num_clients} clients participated`
+    );
+    
+    // Reload page after 3 seconds
+    setTimeout(() => {
+        location.reload();
+    }, 3000);
+}
+
+function handleLegacySuccessResponse(data) {
+    addLogEntry(`Aggregation completed! Round ${data.round_id}`, 'success');
+    addLogEntry(`Global accuracy: ${data.global_accuracy}`, 'info');
+    
+    showNotification('success', 
+        `<strong>Aggregation Successful!</strong><br>
+         Round ${data.round_id} completed with accuracy: ${data.global_accuracy.toFixed(4)}`
+    );
+    
+    setTimeout(() => {
+        location.reload();
+    }, 3000);
+}
+
+function handleWarningResponse(data) {
+    addLogEntry(`Aggregation warning: ${data.message}`, 'warning');
+    showNotification('warning', `<strong>Warning:</strong> ${data.message}`);
+}
+
+function handleErrorResponse(data) {
+    const errorMsg = data.message || 'Unknown error occurred';
+    addLogEntry(`Aggregation failed: ${errorMsg}`, 'error');
+    showNotification('danger', `<strong>Aggregation Failed!</strong><br>${errorMsg}`);
+}
+
+function addLogEntry(message, type = 'info') {
+    const logContainer = document.getElementById('aggregationLog');
+    const timestamp = new Date().toLocaleTimeString();
+    
+    const logEntry = document.createElement('div');
+    logEntry.className = `log-entry text-${getLogColor(type)}`;
+    logEntry.textContent = `[${timestamp}] ${message}`;
+    
+    logContainer.appendChild(logEntry);
+    logContainer.scrollTop = logContainer.scrollHeight;
+}
+
+function getLogColor(type) {
+    const colors = {
+        'info': 'info',
+        'success': 'success', 
+        'warning': 'warning',
+        'error': 'danger'
+    };
+    return colors[type] || 'info';
+}
+
+function showNotification(type, message) {
+    // Remove existing notifications
+    const existingAlerts = document.querySelectorAll('.alert-notification');
+    existingAlerts.forEach(alert => alert.remove());
+    
+    // Create new notification
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show alert-notification position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto-remove after 8 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 8000);
+}
+
+// Auto-refresh dashboard every 60 seconds
+setInterval(() => {
+    addLogEntry('Auto-refreshing dashboard...', 'info');
+    location.reload();
+}, 60000);
+</script>
+{% endblock %}

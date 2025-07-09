@@ -1,0 +1,15 @@
+Django
+django-crispy-forms
+crispy-bootstrap5
+torch
+torchvision
+scikit-learn
+pandas
+numpy
+matplotlib
+tenseal
+pysyft
+celery
+redis
+psycopg2-binary
+

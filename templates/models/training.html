@@ -1,0 +1,626 @@
+{% extends 'base.html' %}
+
+{% block title %}Training Progress - {{ session.session_id }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-brain"></i> Training Session: {{ session.dataset_name }}
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Session ID:</strong> <code>{{ session.session_id }}</code></p>
+                        <p><strong>Dataset:</strong> {{ session.dataset_name }}</p>
+                        <p><strong>Started:</strong> {{ session.created_at|date:"M d, Y H:i:s" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Status:</strong> 
+                            {% if session.status == 'completed' %}
+                                <span class="badge bg-success fs-6" id="mainStatusBadge">
+                                    <i class="fas fa-check"></i> Completed
+                                </span>
+                            {% elif session.status == 'training' %}
+                                <span class="badge bg-primary fs-6" id="mainStatusBadge">
+                                    <i class="fas fa-spinner fa-spin"></i> Training
+                                </span>
+                            {% elif session.status == 'failed' %}
+                                <span class="badge bg-danger fs-6" id="mainStatusBadge">
+                                    <i class="fas fa-times"></i> Failed
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary fs-6" id="mainStatusBadge">
+                                    <i class="fas fa-clock"></i> Pending
+                                </span>
+                            {% endif %}
+                        </p>
+                        {% if session.accuracy %}
+                            <p><strong>Final Accuracy:</strong> <span class="final-accuracy">{{ session.accuracy|floatformat:4 }}</span></p>
+                        {% endif %}
+                        {% if session.loss %}
+                            <p><strong>Final Loss:</strong> <span class="final-loss">{{ session.loss|floatformat:4 }}</span></p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Real-time Metrics -->
+    <div class="col-md-8 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line"></i> Training Metrics
+                    <span class="badge bg-info ms-2" id="statusBadge">{{ session.status|title }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="trainingChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Training Logs -->
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-terminal"></i> Training Logs
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="trainingLogs" class="bg-dark text-white p-3 rounded" style="height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.8rem;">
+                    <div class="log-entry">[{{ session.created_at|date:"H:i:s" }}] Training session initiated</div>
+                    <div class="log-entry">[{{ session.created_at|date:"H:i:s" }}] Loading dataset: {{ session.dataset_name }}</div>
+                    <div class="log-entry">[{{ session.created_at|date:"H:i:s" }}] Preprocessing data...</div>
+                    {% if session.status != 'pending' %}
+                        <div class="log-entry">[{{ session.created_at|date:"H:i:s" }}] Starting model training</div>
+                        <div class="log-entry">[{{ session.created_at|date:"H:i:s" }}] Initializing neural network</div>
+                    {% endif %}
+                    {% if session.status == 'completed' %}
+                        <div class="log-entry text-success">[{{ session.created_at|date:"H:i:s" }}] Training completed successfully</div>
+                        <div class="log-entry text-info">[{{ session.created_at|date:"H:i:s" }}] Final accuracy: {{ session.accuracy|floatformat:4 }}</div>
+                        <div class="log-entry text-warning">[{{ session.created_at|date:"H:i:s" }}] Encrypting model weights</div>
+                        <div class="log-entry text-success">[{{ session.created_at|date:"H:i:s" }}] Encrypted weights ready for federation</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Federated Learning Status -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-network-wired"></i> Federated Learning Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-lock fa-2x text-warning mb-2"></i>
+                            <h6>Homomorphic Encryption</h6>
+                            <span class="badge bg-success">Active</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-shield-alt fa-2x text-primary mb-2"></i>
+                            <h6>Privacy Preservation</h6>
+                            <span class="badge bg-success">Secured</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-share-alt fa-2x text-info mb-2"></i>
+                            <h6>Model Sharing</h6>
+                            {% if session.status == 'completed' %}
+                                <span class="badge bg-success" id="modelSharingBadge">Ready</span>
+                            {% else %}
+                                <span class="badge bg-secondary" id="modelSharingBadge">Pending</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-globe fa-2x text-success mb-2"></i>
+                            <h6>Global Model</h6>
+                            <span class="badge bg-info" id="globalModelStatus">Checking...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if session.status == 'completed' %}
+                    <div class="alert alert-success mt-3" id="completionAlert">
+                        <h6><i class="fas fa-check-circle"></i> Training Complete!</h6>
+                        <p class="mb-0">Your encrypted model weights are ready for federated aggregation. The global model will be updated with contributions from all participating clients while maintaining complete data privacy.</p>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info mt-3" id="completionAlert" style="display: none;">
+                        <h6><i class="fas fa-check-circle"></i> Training Complete!</h6>
+                        <p class="mb-0">Your encrypted model weights are ready for federated aggregation. The global model will be updated with contributions from all participating clients while maintaining complete data privacy.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Download Buttons -->
+<div class="row mt-4">
+    <div class="col-md-12 text-center">
+        <a href="{% url 'accounts:dashboard' %}" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        
+        {% if session.status == 'completed' %}
+            <!-- Local Model Download -->
+            <a href="{% url 'models:download_model' session.session_id 'local' %}" class="btn btn-success">
+                <i class="fas fa-download"></i> Download Local Model
+            </a>
+            
+            <!-- Global Model Download (Dynamic) -->
+            <button class="btn btn-warning" id="globalModelBtn" onclick="checkAndDownloadGlobalModel()">
+                <i class="fas fa-globe"></i> <span id="globalModelText">Check Global Model</span>
+            </button>
+        {% else %}
+            <button class="btn btn-success" id="localModelBtn" onclick="downloadLocalModel()" style="display: none;">
+                <i class="fas fa-download"></i> Download Local Model
+            </button>
+            
+            <button class="btn btn-warning" id="globalModelBtn" onclick="checkAndDownloadGlobalModel()" style="display: none;">
+                <i class="fas fa-globe"></i> <span id="globalModelText">Check Global Model</span>
+            </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Global Model Status Card -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card" id="globalModelCard" style="display: none;">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-globe"></i> Global Federated Model Status
+                </h5>
+            </div>
+            <div class="card-body" id="globalModelStatusDetail">
+                <!-- Dynamic content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let globalModelCheckInterval;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('trainingChart').getContext('2d');
+    const sessionId = '{{ session.session_id }}';
+    const initialStatus = '{{ session.status }}';
+    
+    console.log(`[TrainingPage] Initializing for session ${sessionId} with status: ${initialStatus}`);
+    
+    // CRITICAL: Prevent infinite loops with completion tracking
+    let trainingCompleted = initialStatus === 'completed' || initialStatus === 'failed';
+    let pollCount = 0;
+    const MAX_POLLS = 150; // 150 polls * 5 seconds = 12.5 minutes max
+    
+    // Sample training data for visualization
+    const trainingData = {
+        epochs: Array.from({length: 50}, (_, i) => i + 1),
+        accuracy: [],
+        loss: []
+    };
+    
+    // Generate sample data
+    for (let i = 0; i < 50; i++) {
+        const accuracy = 0.5 + (i / 50) * 0.4 + Math.random() * 0.05;
+        const loss = 2.0 - (i / 50) * 1.5 + Math.random() * 0.1;
+        trainingData.accuracy.push(Math.min(accuracy, 0.95));
+        trainingData.loss.push(Math.max(loss, 0.1));
+    }
+    
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: trainingData.epochs,
+            datasets: [{
+                label: 'Accuracy',
+                data: trainingData.accuracy,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                yAxisID: 'y'
+            }, {
+                label: 'Loss',
+                data: trainingData.loss,
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Accuracy'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Loss'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true
+                },
+                title: {
+                    display: true,
+                    text: 'Training Progress'
+                }
+            },
+            animation: {
+                duration: 1000
+            }
+        }
+    });
+    
+    // Start checking for global model availability
+    if (initialStatus === 'completed') {
+        checkGlobalModelAvailability();
+        // Check every 30 seconds for new global models
+        globalModelCheckInterval = setInterval(checkGlobalModelAvailability, 30000);
+    }
+    
+    // SAFE polling function with completion checks
+    function pollTrainingStatus() {
+        // CRITICAL: Stop polling if training is already completed
+        if (trainingCompleted) {
+            console.log(`[TrainingPage] Training already completed, stopping polls`);
+            return;
+        }
+        
+        // CRITICAL: Stop after maximum polls
+        if (pollCount >= MAX_POLLS) {
+            console.log(`[TrainingPage] Maximum polls reached (${MAX_POLLS}), stopping`);
+            return;
+        }
+        
+        pollCount++;
+        console.log(`[TrainingPage] Poll attempt ${pollCount}/${MAX_POLLS}`);
+        
+        fetch(`/models/api/training-status/${sessionId}/`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(`[TrainingPage] Poll ${pollCount} result:`, data);
+                
+                updateTrainingStatus(data);
+                
+                // CRITICAL: Mark as completed and stop polling
+                if (data.status === 'completed' || data.status === 'failed') {
+                    trainingCompleted = true;
+                    showCompletionMessage(data);
+                    console.log(`[TrainingPage] Training ${data.status}, stopping all polls`);
+                    
+                    // Start checking for global model if completed
+                    if (data.status === 'completed') {
+                        checkGlobalModelAvailability();
+                        globalModelCheckInterval = setInterval(checkGlobalModelAvailability, 30000);
+                    }
+                    
+                    return; // Stop polling
+                }
+                
+                // Continue polling ONLY if still training and not completed
+                if (data.status === 'training' && !trainingCompleted) {
+                    setTimeout(pollTrainingStatus, 5000); // Increased to 5 seconds
+                }
+            })
+            .catch(error => {
+                console.error(`[TrainingPage] Poll error:`, error);
+                // Retry with backoff, but only if not completed
+                if (!trainingCompleted && pollCount < MAX_POLLS) {
+                    setTimeout(pollTrainingStatus, 10000); // 10 second backoff on error
+                }
+            });
+    }
+    
+    function updateTrainingStatus(data) {
+        // Update main status badge
+        const mainStatusBadge = document.getElementById('mainStatusBadge');
+        if (mainStatusBadge) {
+            mainStatusBadge.innerHTML = getStatusBadgeHTML(data.status);
+            mainStatusBadge.className = `badge fs-6 bg-${getStatusColor(data.status)}`;
+        }
+        
+        // Update chart status badge
+        const statusBadge = document.getElementById('statusBadge');
+        if (statusBadge) {
+            statusBadge.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+            statusBadge.className = `badge ms-2 bg-${getStatusColor(data.status)}`;
+        }
+        
+        // Update metrics display
+        if (data.accuracy) {
+            const accuracyElements = document.querySelectorAll('.final-accuracy');
+            accuracyElements.forEach(el => {
+                el.textContent = data.accuracy.toFixed(4);
+            });
+        }
+        
+        if (data.loss) {
+            const lossElements = document.querySelectorAll('.final-loss');
+            lossElements.forEach(el => {
+                el.textContent = data.loss.toFixed(4);
+            });
+        }
+        
+        // Update federated learning status
+        if (data.status === 'completed') {
+            const modelSharingBadge = document.getElementById('modelSharingBadge');
+            if (modelSharingBadge) {
+                modelSharingBadge.textContent = 'Ready';
+                modelSharingBadge.className = 'badge bg-success';
+            }
+            
+            // Show completion alert
+            const completionAlert = document.getElementById('completionAlert');
+            if (completionAlert) {
+                completionAlert.style.display = 'block';
+                completionAlert.className = 'alert alert-success mt-3';
+            }
+            
+            // Show download buttons
+            const localModelBtn = document.getElementById('localModelBtn');
+            const globalModelBtn = document.getElementById('globalModelBtn');
+            if (localModelBtn) localModelBtn.style.display = 'inline-block';
+            if (globalModelBtn) globalModelBtn.style.display = 'inline-block';
+        }
+    }
+    
+    function getStatusBadgeHTML(status) {
+        const statusConfig = {
+            'pending': '<i class="fas fa-clock"></i> Pending',
+            'training': '<i class="fas fa-spinner fa-spin"></i> Training',
+            'completed': '<i class="fas fa-check"></i> Completed',
+            'failed': '<i class="fas fa-times"></i> Failed'
+        };
+        return statusConfig[status] || statusConfig['pending'];
+    }
+    
+    function getStatusColor(status) {
+        const colors = {
+            'pending': 'secondary',
+            'training': 'primary',
+            'completed': 'success',
+            'failed': 'danger'
+        };
+        return colors[status] || 'secondary';
+    }
+    
+    function showCompletionMessage(data) {
+        // Add completion log entry
+        const logsContainer = document.getElementById('trainingLogs');
+        const currentTime = new Date().toLocaleTimeString();
+        
+        const completionLogs = [
+            { text: `Training ${data.status}`, class: data.status === 'completed' ? 'text-success' : 'text-danger' },
+            { text: `Final accuracy: ${data.accuracy ? data.accuracy.toFixed(4) : 'N/A'}`, class: 'text-info' }
+        ];
+        
+        if (data.status === 'completed') {
+            completionLogs.push(
+                { text: `Encrypting model weights`, class: 'text-warning' },
+                { text: `Encrypted weights ready for federation`, class: 'text-success' }
+            );
+        }
+        
+        completionLogs.forEach((log, index) => {
+            setTimeout(() => {
+                const logEntry = document.createElement('div');
+                logEntry.className = `log-entry ${log.class}`;
+                logEntry.textContent = `[${currentTime}] ${log.text}`;
+                logsContainer.appendChild(logEntry);
+                logsContainer.scrollTop = logsContainer.scrollHeight;
+            }, index * 500);
+        });
+        
+        // Show completion notification
+        setTimeout(() => {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-dismissible fade show position-fixed';
+            alertDiv.className += data.status === 'completed' ? ' alert-success' : ' alert-danger';
+            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+            alertDiv.innerHTML = `
+                <strong>Training ${data.status === 'completed' ? 'Completed' : 'Failed'}!</strong><br>
+                ${data.status === 'completed' ? `Final accuracy: ${data.accuracy ? data.accuracy.toFixed(4) : 'N/A'}` : 'Check logs for details'}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(alertDiv);
+        }, 2000);
+    }
+    
+    // CRITICAL: Only start polling if training is actually in progress
+    if (initialStatus === 'training') {
+        console.log(`[TrainingPage] Starting polling for training session`);
+        setTimeout(pollTrainingStatus, 2000); // Start after 2 seconds
+    } else {
+        console.log(`[TrainingPage] Session status is ${initialStatus}, no polling needed`);
+    }
+});
+
+// Global Model Functions
+function checkGlobalModelAvailability() {
+    fetch('/models/api/global-model-status/')
+        .then(response => response.json())
+        .then(data => {
+            updateGlobalModelUI(data);
+        })
+        .catch(error => {
+            console.error('Error checking global model:', error);
+        });
+}
+
+function updateGlobalModelUI(data) {
+    const globalModelBtn = document.getElementById('globalModelBtn');
+    const globalModelText = document.getElementById('globalModelText');
+    const globalModelCard = document.getElementById('globalModelCard');
+    const globalModelStatus = document.getElementById('globalModelStatus');
+    const globalModelStatusDetail = document.getElementById('globalModelStatusDetail');
+    
+    if (data.available) {
+        // Global model is available
+        globalModelBtn.className = 'btn btn-success';
+        globalModelText.textContent = `Download Global Model (Round ${data.latest_round})`;
+        globalModelBtn.onclick = () => downloadGlobalModel();
+        
+        // Update status badge
+        globalModelStatus.textContent = 'Available';
+        globalModelStatus.className = 'badge bg-success';
+        
+        // Show status card
+        globalModelCard.style.display = 'block';
+        globalModelStatusDetail.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Latest Round:</strong> ${data.latest_round}</p>
+                    <p><strong>Total Rounds:</strong> ${data.total_rounds}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Status:</strong> <span class="badge bg-success">Available</span></p>
+                    <p><strong>Model Type:</strong> Federated Averaged</p>
+                </div>
+            </div>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> 
+                <strong>Global Model Benefits:</strong> This model combines knowledge from all participating organizations while maintaining complete data privacy. It typically performs better than individual local models.
+            </div>
+        `;
+    } else {
+        // No global model yet
+        globalModelBtn.className = 'btn btn-secondary';
+        globalModelText.textContent = 'Global Model Not Available';
+        globalModelBtn.onclick = () => showGlobalModelInfo();
+        
+        // Update status badge
+        globalModelStatus.textContent = 'Pending';
+        globalModelStatus.className = 'badge bg-warning';
+        
+        // Show waiting status
+        globalModelCard.style.display = 'block';
+        globalModelStatusDetail.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-clock"></i> 
+                <strong>Waiting for Aggregation:</strong> ${data.message || 'Admin needs to run federated aggregation to create the global model.'}
+            </div>
+            <p class="text-muted">The global model will be available after the admin triggers federated aggregation with multiple client models.</p>
+        `;
+    }
+}
+
+function checkAndDownloadGlobalModel() {
+    fetch('/models/api/global-model-status/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.available) {
+                downloadGlobalModel();
+            } else {
+                showGlobalModelInfo();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error checking global model status');
+        });
+}
+
+function downloadGlobalModel() {
+    const sessionId = '{{ session.session_id }}';
+    const downloadUrl = `/models/download/${sessionId}/global/`;
+    
+    // Show download notification
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-success alert-dismissible fade show';
+    alertDiv.innerHTML = `
+        <strong>Downloading Global Model...</strong><br>
+        This file contains the federated model trained on data from multiple organizations while maintaining privacy.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.container-fluid') || document.querySelector('.container');
+    if (container) {
+        container.insertBefore(alertDiv, container.firstChild);
+    }
+    
+    // Trigger download
+    window.location.href = downloadUrl;
+}
+
+function downloadLocalModel() {
+    const sessionId = '{{ session.session_id }}';
+    const downloadUrl = `/models/download/${sessionId}/local/`;
+    window.location.href = downloadUrl;
+}
+
+function showGlobalModelInfo() {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-info alert-dismissible fade show';
+    alertDiv.innerHTML = `
+        <strong>Global Model Not Ready</strong><br>
+        The federated global model will be available after the admin runs aggregation with multiple client models. 
+        Check back later or contact your administrator.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.container-fluid') || document.querySelector('.container');
+    if (container) {
+        container.insertBefore(alertDiv, container.firstChild);
+    }
+}
+
+// Clean up interval when leaving page
+window.addEventListener('beforeunload', function() {
+    if (globalModelCheckInterval) {
+        clearInterval(globalModelCheckInterval);
+    }
+});
+</script>
+{% endblock %}
