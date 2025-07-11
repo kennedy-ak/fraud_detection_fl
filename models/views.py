@@ -57,11 +57,13 @@ def upload_dataset(request):
                             messages.warning(request, 'Training session already in progress for your account.')
                             return redirect('accounts:dashboard')
 
-                        # Create new session
+                        # Create new session with client-selected parameters
                         session = TrainingSession.objects.create(
                             client=client_profile,
                             session_id=new_session_uuid,
                             dataset_name=form.cleaned_data['dataset_name'],
+                            epochs=form.cleaned_data['epochs'],  # Client-selected epochs
+                            batch_size=form.cleaned_data['batch_size'],  # Client-selected batch size
                             status='training'  # Start directly as training
                         )
                         
@@ -151,10 +153,17 @@ def train_model_background(session_id, file_path, session_uuid):
         if time.time() - start_time > TIMEOUT_MINUTES * 60:
             raise TimeoutError("Training timeout reached before starting")
         
-        # CRITICAL: Train model with timeout monitoring
+        # CRITICAL: Train model with client-selected parameters
         print(f"[Training] ===== CALLING trainer.train_model() =====")
+        print(f"[Training] Client-selected epochs: {session.epochs}")
+        print(f"[Training] Client-selected batch_size: {session.batch_size}")
         
-        model, history, metrics = trainer.train_model(full_path, epochs=50)
+        # Use client's training parameters
+        model, history, metrics = trainer.train_model(
+            full_path, 
+            epochs=session.epochs,  # Use client-selected epochs
+            batch_size=session.batch_size  # Use client-selected batch size
+        )
         
         # CRITICAL: Verify training actually completed
         if model is None or history is None or metrics is None:
@@ -205,6 +214,10 @@ def train_model_background(session_id, file_path, session_uuid):
             if history and 'loss' in history and history['loss']:
                 final_loss = float(history['loss'][-1])
             session.loss = final_loss
+            
+            # Store training metrics
+            session.training_time_seconds = time.time() - start_time
+            session.final_epoch = len(history['loss']) if history and 'loss' in history else session.epochs
             
             session.save()
         
