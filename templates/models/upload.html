@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-8">
+    <div class="col-md-10">
         <div class="card">
             <div class="card-header bg-primary text-white">
                 <h4 class="mb-0">
@@ -13,11 +13,13 @@
                 </h4>
             </div>
             <div class="card-body">
+                <!-- Dataset Requirements Alert -->
                 <div class="alert alert-info">
                     <h6><i class="fas fa-info-circle"></i> Dataset Requirements:</h6>
                     <ul class="mb-0">
                         <li>CSV format with headers</li>
-                        <li>Must include: <code>is_fraud</code>, <code>amt</code>, <code>category</code>, etc.</li>
+                        <li>Must include: <code>is_fraud</code> (0 or 1), <code>amt</code> (transaction amount)</li>
+                        <li>Optional: <code>lat</code>, <code>long</code>, <code>category</code>, <code>gender</code>, <code>state</code>, etc.</li>
                         <li>Maximum file size: 500MB</li>
                         <li>Data remains on your local system - only encrypted model weights are shared</li>
                     </ul>
@@ -25,13 +27,85 @@
                 
                 <form method="post" enctype="multipart/form-data" id="uploadForm">
                     {% csrf_token %}
-                    {{ form|crispy }}
                     
+                    <div class="row">
+                        <!-- Dataset Upload Section -->
+                        <div class="col-md-6 mb-4">
+                            <h5 class="text-primary"><i class="fas fa-database"></i> Dataset Information</h5>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.dataset_name.id_for_label }}" class="form-label">
+                                    <strong>Dataset Name</strong>
+                                </label>
+                                {{ form.dataset_name }}
+                                <div class="form-text">{{ form.dataset_name.help_text }}</div>
+                                {% if form.dataset_name.errors %}
+                                    <div class="text-danger">{{ form.dataset_name.errors }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.dataset_file.id_for_label }}" class="form-label">
+                                    <strong>Dataset File</strong>
+                                </label>
+                                {{ form.dataset_file }}
+                                <div class="form-text">{{ form.dataset_file.help_text }}</div>
+                                {% if form.dataset_file.errors %}
+                                    <div class="text-danger">{{ form.dataset_file.errors }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- File Info Display -->
+                            <div id="fileInfo" class="alert alert-secondary" style="display: none;">
+                                <strong>Selected File:</strong>
+                                <div id="fileName"></div>
+                                <div id="fileSize"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Training Parameters Section -->
+                        <div class="col-md-6 mb-4">
+                            <h5 class="text-success"><i class="fas fa-cogs"></i> Training Parameters</h5>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.epochs.id_for_label }}" class="form-label">
+                                    <strong>Training Epochs</strong>
+                                </label>
+                                {{ form.epochs }}
+                                <div class="form-text">{{ form.epochs.help_text }}</div>
+                                <div id="epochEstimate" class="text-muted small"></div>
+                                {% if form.epochs.errors %}
+                                    <div class="text-danger">{{ form.epochs.errors }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.batch_size.id_for_label }}" class="form-label">
+                                    <strong>Batch Size</strong>
+                                </label>
+                                {{ form.batch_size }}
+                                <div class="form-text">{{ form.batch_size.help_text }}</div>
+                                {% if form.batch_size.errors %}
+                                    <div class="text-danger">{{ form.batch_size.errors }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Training Time Estimate -->
+                            <div class="alert alert-warning">
+                                <h6><i class="fas fa-clock"></i> Estimated Training Time</h6>
+                                <div id="timeEstimate">Select epochs to see estimate</div>
+                                <small class="text-muted">Actual time may vary based on dataset size and system performance</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress Bar -->
                     <div class="progress mb-3" style="display: none;" id="uploadProgress">
                         <div class="progress-bar progress-bar-striped progress-bar-animated" 
                              role="progressbar" style="width: 0%"></div>
                     </div>
                     
+                    <!-- Submit Buttons -->
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
                             <i class="fas fa-rocket"></i> Start Federated Training
@@ -55,7 +129,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>Your CSV should include these columns (sample from credit card fraud dataset):</p>
+                <p>Your CSV should include these columns (based on your credit card fraud dataset):</p>
                 <div class="table-responsive">
                     <table class="table table-sm">
                         <thead>
@@ -70,13 +144,18 @@
                                 <th>state</th>
                                 <th>lat</th>
                                 <th>long</th>
+                                <th>city_pop</th>
+                                <th>job</th>
+                                <th>unix_time</th>
+                                <th>merch_lat</th>
+                                <th>merch_long</th>
                                 <th>is_fraud</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
                                 <td>2019-01-01 00:00:18</td>
-                                <td>2703186189652095</td>
+                                <td>2.703186e+15</td>
                                 <td>fraud_Rippin, Kub and Mann</td>
                                 <td>misc_net</td>
                                 <td>4.97</td>
@@ -85,21 +164,53 @@
                                 <td>NC</td>
                                 <td>36.0788</td>
                                 <td>-81.1781</td>
+                                <td>1612</td>
+                                <td>Psychologist</td>
+                                <td>1325376018</td>
+                                <td>36.011293</td>
+                                <td>-82.469289</td>
                                 <td>0</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-                <p class="text-muted mt-3">
-                    <strong>is_fraud</strong> column should contain 0 (legitimate) or 1 (fraudulent) transactions.
-                </p>
+                <div class="alert alert-success mt-3">
+                    <strong>✅ Perfect Match!</strong> Your dataset has all the required columns for optimal fraud detection.
+                </div>
+                <div class="alert alert-warning mt-2">
+                    <strong>Required Columns:</strong>
+                    <ul class="mb-0">
+                        <li><code>is_fraud</code>: 0 for legitimate transactions, 1 for fraudulent</li>
+                        <li><code>amt</code>: Transaction amount (numeric)</li>
+                    </ul>
+                </div>
+                <div class="alert alert-info mt-2">
+                    <strong>Available Features in Your Dataset:</strong>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="small mb-0">
+                                <li><strong>Location:</strong> lat, long, city, state, city_pop</li>
+                                <li><strong>Merchant:</strong> merchant, category, merch_lat, merch_long</li>
+                                <li><strong>Transaction:</strong> amt, unix_time, trans_date_trans_time</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="small mb-0">
+                                <li><strong>Customer:</strong> gender, job</li>
+                                <li><strong>Card:</strong> cc_num</li>
+                                <li><strong>Target:</strong> is_fraud (what we predict)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Help Cards -->
 <div class="row mt-4">
-    <div class="col-md-12">
+    <div class="col-md-6">
         <div class="card">
             <div class="card-body text-center">
                 <h6>Need sample data format?</h6>
@@ -109,33 +220,141 @@
             </div>
         </div>
     </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6>Training Parameters Help</h6>
+                <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="collapse" data-bs-target="#helpCollapse">
+                    <i class="fas fa-question-circle"></i> Training Guidelines
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Help Collapse -->
+<div class="collapse mt-3" id="helpCollapse">
+    <div class="card card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="text-primary">Epochs Guidelines:</h6>
+                <ul class="small">
+                    <li><strong>10 epochs:</strong> Quick testing, basic models</li>
+                    <li><strong>25 epochs:</strong> Good for small datasets</li>
+                    <li><strong>50 epochs:</strong> Standard choice for most cases</li>
+                    <li><strong>75+ epochs:</strong> Large datasets, maximum accuracy</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-success">Batch Size Guidelines:</h6>
+                <ul class="small">
+                    <li><strong>16-32:</strong> Most stable, works on any system</li>
+                    <li><strong>64:</strong> Good balance of speed and stability</li>
+                    <li><strong>128+:</strong> Fastest training, needs powerful hardware</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.getElementById('uploadForm').addEventListener('submit', function(e) {
-    const submitBtn = document.getElementById('submitBtn');
-    const progress = document.getElementById('uploadProgress');
+document.addEventListener('DOMContentLoaded', function() {
+    const epochSelect = document.getElementById('{{ form.epochs.id_for_label }}');
+    const batchSizeSelect = document.getElementById('{{ form.batch_size.id_for_label }}');
+    const fileInput = document.getElementById('{{ form.dataset_file.id_for_label }}');
+    const timeEstimate = document.getElementById('timeEstimate');
+    const epochEstimate = document.getElementById('epochEstimate');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
     
-    // Show progress and disable button
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading & Training...';
-    submitBtn.disabled = true;
-    progress.style.display = 'block';
+    // Time estimates based on epochs (rough estimates)
+    const timeEstimates = {
+        10: "2-5 minutes",
+        25: "5-10 minutes", 
+        50: "10-20 minutes",
+        75: "15-30 minutes",
+        100: "20-40 minutes"
+    };
     
-    // Simulate progress (in real implementation, use WebSocket or polling)
-    let progressValue = 0;
-    const progressBar = progress.querySelector('.progress-bar');
+    // Update time estimate when epochs change
+    function updateTimeEstimate() {
+        const epochs = parseInt(epochSelect.value);
+        const estimate = timeEstimates[epochs] || "Unknown";
+        timeEstimate.textContent = estimate;
+        epochEstimate.textContent = `Estimated: ${estimate}`;
+    }
     
-    const interval = setInterval(() => {
-        progressValue += Math.random() * 10;
-        if (progressValue > 90) progressValue = 90;
-        progressBar.style.width = progressValue + '%';
-    }, 500);
+    // File size formatter
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
     
-    // Clean up on page unload
-    window.addEventListener('beforeunload', () => {
-        clearInterval(interval);
+    // Show file info when file is selected
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileInfo.style.display = 'block';
+            
+            // Validate file size
+            if (file.size > 500 * 1024 * 1024) {
+                fileInfo.className = 'alert alert-danger';
+                fileSize.innerHTML += ' <strong>(Too large! Max 500MB)</strong>';
+            } else {
+                fileInfo.className = 'alert alert-success';
+            }
+        } else {
+            fileInfo.style.display = 'none';
+        }
+    });
+    
+    // Update estimates on page load and when changed
+    epochSelect.addEventListener('change', updateTimeEstimate);
+    updateTimeEstimate();
+    
+    // Form submission handling
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        const submitBtn = document.getElementById('submitBtn');
+        const progress = document.getElementById('uploadProgress');
+        
+        // Validate file is selected
+        if (!fileInput.files.length) {
+            e.preventDefault();
+            alert('Please select a dataset file to upload.');
+            return;
+        }
+        
+        // Show progress and disable button
+        const epochs = epochSelect.value;
+        const estimate = timeEstimates[epochs] || "several minutes";
+        
+        submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Uploading & Training (${estimate})...`;
+        submitBtn.disabled = true;
+        progress.style.display = 'block';
+        
+        // Simulate progress
+        let progressValue = 0;
+        const progressBar = progress.querySelector('.progress-bar');
+        
+        const interval = setInterval(() => {
+            progressValue += Math.random() * 5;
+            if (progressValue > 95) progressValue = 95;
+            progressBar.style.width = progressValue + '%';
+            progressBar.textContent = Math.round(progressValue) + '%';
+        }, 500);
+        
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            clearInterval(interval);
+        });
     });
 });
 </script>

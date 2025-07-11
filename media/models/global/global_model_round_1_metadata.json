@@ -1,0 +1,12 @@
+{
+  "round_id": 1,
+  "num_clients": 1,
+  "participating_clients": [
+    "Access Bank Ghana"
+  ],
+  "global_accuracy": 0.9973,
+  "timestamp": 1752227825.3991818,
+  "file_path": "media/models/global/global_model_round_1.pkl",
+  "weights_count": 8,
+  "serialization_method": "tenseal_native"
+}
